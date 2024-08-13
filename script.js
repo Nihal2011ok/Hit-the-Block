@@ -22,6 +22,9 @@ const brickPadding = 10;
 const brickOffsetTop = 30;
 const brickOffsetLeft = 30;
 
+let score = 0;
+let lives = 3;
+
 const bricks = [];
 for (let c = 0; c < brickColumnCount; c++) {
     bricks[c] = [];
@@ -72,10 +75,24 @@ function collisionDetection() {
                 if (ballX > b.x && ballX < b.x + brickWidth && ballY > b.y && ballY < b.y + brickHeight) {
                     ballDY = -ballDY;
                     b.status = 0;
+                    score++;
+                    updateScore();
+                    if (score === brickRowCount * brickColumnCount) {
+                        alert('Congratulations! You win!');
+                        document.location.reload();
+                    }
                 }
             }
         }
     }
+}
+
+function updateScore() {
+    document.getElementById('score').textContent = `Score: ${score}`;
+}
+
+function updateLives() {
+    document.getElementById('lives').textContent = `Lives: ${lives}`;
 }
 
 function draw() {
@@ -94,8 +111,18 @@ function draw() {
         if (ballX > paddleX && ballX < paddleX + paddleWidth) {
             ballDY = -ballDY;
         } else {
-            alert('GAME OVER');
-            document.location.reload();
+            lives--;
+            updateLives();
+            if (lives === 0) {
+                alert('GAME OVER');
+                document.location.reload();
+            } else {
+                ballX = canvas.width / 2;
+                ballY = canvas.height - 30;
+                ballDX = 2;
+                ballDY = -2;
+                paddleX = (canvas.width - paddleWidth) / 2;
+            }
         }
     }
 
@@ -133,4 +160,6 @@ function keyUpHandler(e) {
     }
 }
 
+updateScore();
+updateLives();
 draw();
