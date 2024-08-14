@@ -25,11 +25,23 @@ const brickOffsetLeft = 30;
 let score = 0;
 let lives = 3;
 let level = 1;
+let highScore = localStorage.getItem('highScore') || 0;
 
 const powerUpTypes = ['expand', 'shrink', 'speedUp', 'slowDown'];
 let activePowerUps = [];
 
 const bricks = [];
+let particles = [];
+
+let gameStarted = false;
+let gamePaused = false;
+
+const sounds = {
+    brick: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-arcade-mechanical-bling-210.mp3'),
+    powerUp: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-unlock-game-notification-253.mp3'),
+    gameOver: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-player-losing-or-failing-2042.mp3'),
+    levelUp: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-achievement-bell-600.mp3')
+};
 
 function initializeBricks() {
     for (let c = 0; c < brickColumnCount; c++) {
@@ -44,8 +56,6 @@ function initializeBricks() {
         }
     }
 }
-
-initializeBricks();
 
 function drawBall() {
     ctx.beginPath();
@@ -92,6 +102,7 @@ function drawPowerUps() {
 
         if (powerUp.y > canvas.height - paddleHeight && powerUp.x > paddleX && powerUp.x < paddleX + paddleWidth) {
             activatePowerUp(powerUp.type);
+            sounds.powerUp.play();
             return false;
         }
 
@@ -138,6 +149,8 @@ function collisionDetection() {
                     b.status = 0;
                     score++;
                     updateScore();
+                    createParticles(b.x + brickWidth / 2, b.y + brickHeight / 2);
+                    sounds.brick.play();
                     if (b.powerUp) {
                         activePowerUps.push({ x: b.x + brickWidth / 2, y: b.y + brickHeight, type: b.powerUp });
                     }
@@ -147,6 +160,7 @@ function collisionDetection() {
                             alert('Congratulations! You won the game!');
                             document.location.reload();
                         } else {
+                            sounds.levelUp.play();
                             alert('Congratulations! Next level');
                             initializeBricks();
                             ballX = canvas.width / 2;
@@ -163,8 +177,46 @@ function collisionDetection() {
     }
 }
 
+function createParticles(x, y) {
+    for (let i = 0; i < 10; i++) {
+        particles.push({
+            x: x,
+            y: y,
+            radius: Math.random() * 3 + 1,
+            color: `rgb(${Math.random() * 255},${Math.random() * 255},${Math.random() * 255})`,
+            speedX: Math.random() * 4 - 2,
+            speedY: Math.random() * 4 - 2,
+            life: 30
+        });
+    }
+}
+
+function drawParticles() {
+    particles.forEach((particle, index) => {
+        particle.x += particle.speedX;
+        particle.y += particle.speedY;
+        particle.life--;
+
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+        ctx.fillStyle = particle.color;
+        ctx.fill();
+        ctx.closePath();
+
+        if (particle.life <= 0) {
+            particles.splice(index, 1);
+        }
+    });
+}
+
 function updateScore() {
+    score = Math.max(0, score);  // Ensure score is not negative
     document.getElementById('score').textContent = `Score: ${score}`;
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('highScore', highScore);
+        document.getElementById('highScore').textContent = `High Score: ${highScore}`;
+    }
 }
 
 function updateLives() {
@@ -176,11 +228,14 @@ function updateLevel() {
 }
 
 function draw() {
+    if (!gameStarted || gamePaused) return;
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawBricks();
     drawBall();
     drawPaddle();
     drawPowerUps();
+    drawParticles();
     collisionDetection();
 
     if (ballX + ballDX > canvas.width - ballRadius || ballX + ballDX < ballRadius) {
@@ -195,6 +250,7 @@ function draw() {
             lives--;
             updateLives();
             if (lives === 0) {
+                sounds.gameOver.play();
                 alert('GAME OVER');
                 document.location.reload();
             } else {
@@ -231,6 +287,8 @@ function keyDownHandler(e) {
         rightPressed = true;
     } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
         leftPressed = true;
+    } else if (e.key === 'p' || e.key === 'P') {
+        togglePause();
     }
 }
 
@@ -249,7 +307,21 @@ function mouseMoveHandler(e) {
     }
 }
 
-updateScore();
-updateLives();
-updateLevel();
-draw();
+function togglePause() {
+    gamePaused = !gamePaused;
+    if (!gamePaused) {
+        requestAnimationFrame(draw);
+    }
+}
+
+document.getElementById('startButton').addEventListener('click', () => {
+    gameStarted = true;
+    document.getElementById('startScreen').style.display = 'none';
+    initializeBricks();
+    updateScore();
+    updateLives();
+    updateLevel();
+    draw();
+});
+
+document.getElementById('highScore').textContent = `High Score: ${highScore}`;
